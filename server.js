@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 
 // ⚙️ CONFIGURATION
 // Replace this with YOUR Google Drive direct download link
-const APK_DOWNLOAD_URL = 'https://drive.google.com/uc?export=download&id=114xTA4XxHGsysKPqIS5g3Hzfthb4KiGi';
+const APK_DOWNLOAD_URL = 'https://github.com/renaclean/renacleandialyzer-server/releases/download/v1.0/renacleandialyzer.apk';
 
 // ⚙️ AUTHORIZED DEVICES DATABASE
 const authorizedDevices = new Set([
@@ -180,5 +180,6 @@ app.listen(PORT, '0.0.0.0', () => {
     log(`Authorized devices: ${authorizedDevices.size}`);
     log('==============================================');
 });
+
 
 
