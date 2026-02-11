@@ -1,0 +1,15 @@
+{
+  "name": "renacleandialyzer-server",
+  "version": "1.0.0",
+  "description": "RenaClean Dialyzer Installation Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
