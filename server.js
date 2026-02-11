@@ -57,7 +57,7 @@ app.get('/api/check-device', (req, res) => {
 });
 
 /**
- * Download APK from Google Drive (proxy)
+ * Download APK from Google Drive (redirect method)
  * GET /api/download-app?device_id=XXXXX
  */
 app.get('/api/download-app', (req, res) => {
@@ -75,78 +75,13 @@ app.get('/api/download-app', (req, res) => {
         return res.status(403).send('Device not authorized');
     }
 
-    log(`📥 Download started: ${deviceId} from ${ip}`);
+    log(`📥 Download request: ${deviceId} from ${ip}`);
+    log(`🔄 Redirecting to Google Drive for download`);
 
-    // Parse the Google Drive URL
-    const parsedUrl = new URL(APK_DOWNLOAD_URL);
-    const protocol = parsedUrl.protocol === 'https:' ? https : http;
-
-    // Proxy the download from Google Drive
-    const options = {
-        hostname: parsedUrl.hostname,
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: 'GET',
-        headers: {
-            'User-Agent': 'Mozilla/5.0'
-        }
-    };
-
-    const proxyReq = protocol.request(options, (proxyRes) => {
-        // Handle Google Drive redirect
-        if (proxyRes.statusCode === 302 || proxyRes.statusCode === 301) {
-            const redirectUrl = proxyRes.headers.location;
-            log(`🔄 Following redirect to: ${redirectUrl}`);
-
-            const redirectParsed = new URL(redirectUrl);
-            const redirectProtocol = redirectParsed.protocol === 'https:' ? https : http;
-
-            const redirectOptions = {
-                hostname: redirectParsed.hostname,
-                path: redirectParsed.pathname + redirectParsed.search,
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0'
-                }
-            };
-
-            const redirectReq = redirectProtocol.request(redirectOptions, (redirectRes) => {
-                // Set headers for APK download
-                res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-                res.setHeader('Content-Disposition', 'attachment; filename="renacleandialyzer.apk"');
-
-                // Pipe the response
-                redirectRes.pipe(res);
-
-                redirectRes.on('end', () => {
-                    log(`✅ Download completed: ${deviceId}`);
-                });
-            });
-
-            redirectReq.on('error', (err) => {
-                log(`❌ Redirect request error: ${err.message}`);
-                res.status(500).send('Download failed');
-            });
-
-            redirectReq.end();
-        } else {
-            // No redirect, direct download
-            res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-            res.setHeader('Content-Disposition', 'attachment; filename="renacleandialyzer.apk"');
-
-            proxyRes.pipe(res);
-
-            proxyRes.on('end', () => {
-                log(`✅ Download completed: ${deviceId}`);
-            });
-        }
-    });
-
-    proxyReq.on('error', (err) => {
-        log(`❌ Download error for ${deviceId}: ${err.message}`);
-        res.status(500).send('Download failed');
-    });
-
-    proxyReq.end();
+    // Simply redirect to Google Drive direct download
+    res.redirect(APK_DOWNLOAD_URL);
+    
+    log(`✅ Redirect sent for: ${deviceId}`);
 });
 
 /**
@@ -245,4 +180,5 @@ app.listen(PORT, '0.0.0.0', () => {
     log(`Authorized devices: ${authorizedDevices.size}`);
     log('==============================================');
 });
+
 
