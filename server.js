@@ -1,19 +1,15 @@
 const express = require('express');
-const https = require('https');
-const http = require('http');
-const { URL } = require('url');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
-// ⚙️ CONFIGURATION
-// Replace this with YOUR Google Drive direct download link
+// ⚙️ CONFIGURATION - Replace with YOUR actual GitHub Release URL
+// Format: https://github.com/USERNAME/REPO-NAME/releases/download/TAG/renacleandialyzer.apk
 const APK_DOWNLOAD_URL = 'https://github.com/renaclean/renacleandialyzer-server/releases/download/v1.0/renacleandialyzer.apk';
 
 // ⚙️ AUTHORIZED DEVICES DATABASE
 const authorizedDevices = new Set([
-    '9d389cebf6a08dbd',  // Example device 1
-    // Add more device IDs as you authorize customers
+    '9d389cebf6a08dbd',
 ]);
 
 // Logging
@@ -22,14 +18,6 @@ function log(message) {
     console.log(`[${timestamp}] ${message}`);
 }
 
-// ==========================================
-// API ENDPOINTS
-// ==========================================
-
-/**
- * Check if device is authorized
- * GET /api/check-device?device_id=XXXXX
- */
 app.get('/api/check-device', (req, res) => {
     const deviceId = req.query.device_id;
     const ip = req.ip || req.connection.remoteAddress;
@@ -40,7 +28,6 @@ app.get('/api/check-device', (req, res) => {
     }
 
     const isAuthorized = authorizedDevices.has(deviceId);
-
     log(`🔍 Authorization check: ${deviceId} from ${ip} → ${isAuthorized ? '✅ AUTHORIZED' : '❌ DENIED'}`);
 
     if (isAuthorized) {
@@ -56,10 +43,6 @@ app.get('/api/check-device', (req, res) => {
     }
 });
 
-/**
- * Download APK from Google Drive (redirect method)
- * GET /api/download-app?device_id=XXXXX
- */
 app.get('/api/download-app', (req, res) => {
     const deviceId = req.query.device_id;
     const ip = req.ip || req.connection.remoteAddress;
@@ -69,29 +52,24 @@ app.get('/api/download-app', (req, res) => {
         return res.status(400).send('Device ID required');
     }
 
-    // Check authorization
     if (!authorizedDevices.has(deviceId)) {
         log(`❌ Download denied: Unauthorized device ${deviceId} from ${ip}`);
         return res.status(403).send('Device not authorized');
     }
 
     log(`📥 Download request: ${deviceId} from ${ip}`);
-    log(`🔄 Redirecting to Google Drive for download`);
+    log(`🔄 Redirecting to: ${APK_DOWNLOAD_URL}`);
 
-    // Simply redirect to Google Drive direct download
+    // Redirect to GitHub Release
     res.redirect(APK_DOWNLOAD_URL);
     
     log(`✅ Redirect sent for: ${deviceId}`);
 });
 
-/**
- * Admin endpoint to authorize a device
- * POST /api/authorize-device?device_id=XXXXX&admin_key=SECRET
- */
 app.post('/api/authorize-device', (req, res) => {
     const deviceId = req.query.device_id;
     const adminKey = req.query.admin_key;
-    const ADMIN_KEY = 'your-secret-admin-key-12345'; // Change this!
+    const ADMIN_KEY = process.env.ADMIN_KEY || 'your-secret-admin-key-12345';
 
     if (adminKey !== ADMIN_KEY) {
         log(`❌ Authorization failed: Invalid admin key`);
@@ -112,14 +90,10 @@ app.post('/api/authorize-device', (req, res) => {
     });
 });
 
-/**
- * Admin endpoint to revoke device authorization
- * POST /api/revoke-device?device_id=XXXXX&admin_key=SECRET
- */
 app.post('/api/revoke-device', (req, res) => {
     const deviceId = req.query.device_id;
     const adminKey = req.query.admin_key;
-    const ADMIN_KEY = 'your-secret-admin-key-12345'; // Change this!
+    const ADMIN_KEY = process.env.ADMIN_KEY || 'your-secret-admin-key-12345';
 
     if (adminKey !== ADMIN_KEY) {
         log(`❌ Revoke failed: Invalid admin key`);
@@ -142,13 +116,9 @@ app.post('/api/revoke-device', (req, res) => {
     });
 });
 
-/**
- * Get list of authorized devices (admin only)
- * GET /api/list-devices?admin_key=SECRET
- */
 app.get('/api/list-devices', (req, res) => {
     const adminKey = req.query.admin_key;
-    const ADMIN_KEY = 'your-secret-admin-key-12345'; // Change this!
+    const ADMIN_KEY = process.env.ADMIN_KEY || 'your-secret-admin-key-12345';
 
     if (adminKey !== ADMIN_KEY) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -160,26 +130,16 @@ app.get('/api/list-devices', (req, res) => {
     });
 });
 
-/**
- * Health check
- * GET /
- */
 app.get('/', (req, res) => {
     res.send('RenaClean Dialyzer Installation Server - Running ✅');
 });
-
-// ==========================================
-// START SERVER
-// ==========================================
 
 app.listen(PORT, '0.0.0.0', () => {
     log('==============================================');
     log('RenaClean Dialyzer Installation Server');
     log('==============================================');
     log(`Server running on port ${PORT}`);
+    log(`APK URL: ${APK_DOWNLOAD_URL}`);
     log(`Authorized devices: ${authorizedDevices.size}`);
     log('==============================================');
 });
-
-
-
