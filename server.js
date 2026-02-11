@@ -1,13 +1,18 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const https = require('https');
+const http = require('http');
+const { URL } = require('url');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ⚙️ CONFIGURATION
+// Replace this with YOUR Google Drive direct download link
+const APK_DOWNLOAD_URL = 'https://drive.usercontent.google.com/download?id=114xTA4XxHGsysKPqIS5g3Hzfthb4KiGi&export=download&authuser=0';
+
 // ⚙️ AUTHORIZED DEVICES DATABASE
 const authorizedDevices = new Set([
-    '9d389cebf6a08dbd',  // Honor Pad X9
+    '9d389cebf6a08dbd',  // Example device 1
     // Add more device IDs as you authorize customers
 ]);
 
@@ -52,7 +57,7 @@ app.get('/api/check-device', (req, res) => {
 });
 
 /**
- * Download APK (only for authorized devices)
+ * Download APK from Google Drive (proxy)
  * GET /api/download-app?device_id=XXXXX
  */
 app.get('/api/download-app', (req, res) => {
@@ -70,24 +75,78 @@ app.get('/api/download-app', (req, res) => {
         return res.status(403).send('Device not authorized');
     }
 
-    // Check if APK exists
-    const apkPath = path.join(__dirname, 'apks', 'renacleandialyzer.apk');
-
-    if (!fs.existsSync(apkPath)) {
-        log(`❌ APK file not found: ${apkPath}`);
-        return res.status(404).send('APK not found');
-    }
-
     log(`📥 Download started: ${deviceId} from ${ip}`);
 
-    // Send APK file
-    res.download(apkPath, 'renacleandialyzer.apk', (err) => {
-        if (err) {
-            log(`❌ Download error for ${deviceId}: ${err.message}`);
+    // Parse the Google Drive URL
+    const parsedUrl = new URL(APK_DOWNLOAD_URL);
+    const protocol = parsedUrl.protocol === 'https:' ? https : http;
+
+    // Proxy the download from Google Drive
+    const options = {
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'GET',
+        headers: {
+            'User-Agent': 'Mozilla/5.0'
+        }
+    };
+
+    const proxyReq = protocol.request(options, (proxyRes) => {
+        // Handle Google Drive redirect
+        if (proxyRes.statusCode === 302 || proxyRes.statusCode === 301) {
+            const redirectUrl = proxyRes.headers.location;
+            log(`🔄 Following redirect to: ${redirectUrl}`);
+
+            const redirectParsed = new URL(redirectUrl);
+            const redirectProtocol = redirectParsed.protocol === 'https:' ? https : http;
+
+            const redirectOptions = {
+                hostname: redirectParsed.hostname,
+                path: redirectParsed.pathname + redirectParsed.search,
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0'
+                }
+            };
+
+            const redirectReq = redirectProtocol.request(redirectOptions, (redirectRes) => {
+                // Set headers for APK download
+                res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+                res.setHeader('Content-Disposition', 'attachment; filename="renacleandialyzer.apk"');
+
+                // Pipe the response
+                redirectRes.pipe(res);
+
+                redirectRes.on('end', () => {
+                    log(`✅ Download completed: ${deviceId}`);
+                });
+            });
+
+            redirectReq.on('error', (err) => {
+                log(`❌ Redirect request error: ${err.message}`);
+                res.status(500).send('Download failed');
+            });
+
+            redirectReq.end();
         } else {
-            log(`✅ Download completed: ${deviceId}`);
+            // No redirect, direct download
+            res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+            res.setHeader('Content-Disposition', 'attachment; filename="renacleandialyzer.apk"');
+
+            proxyRes.pipe(res);
+
+            proxyRes.on('end', () => {
+                log(`✅ Download completed: ${deviceId}`);
+            });
         }
     });
+
+    proxyReq.on('error', (err) => {
+        log(`❌ Download error for ${deviceId}: ${err.message}`);
+        res.status(500).send('Download failed');
+    });
+
+    proxyReq.end();
 });
 
 /**
@@ -97,7 +156,7 @@ app.get('/api/download-app', (req, res) => {
 app.post('/api/authorize-device', (req, res) => {
     const deviceId = req.query.device_id;
     const adminKey = req.query.admin_key;
-    const ADMIN_KEY = 'sqm@2026'; // Change this!
+    const ADMIN_KEY = 'your-secret-admin-key-12345'; // Change this!
 
     if (adminKey !== ADMIN_KEY) {
         log(`❌ Authorization failed: Invalid admin key`);
@@ -125,7 +184,7 @@ app.post('/api/authorize-device', (req, res) => {
 app.post('/api/revoke-device', (req, res) => {
     const deviceId = req.query.device_id;
     const adminKey = req.query.admin_key;
-    const ADMIN_KEY = 'sqm@2026'; // Change this!
+    const ADMIN_KEY = 'your-secret-admin-key-12345'; // Change this!
 
     if (adminKey !== ADMIN_KEY) {
         log(`❌ Revoke failed: Invalid admin key`);
@@ -154,7 +213,7 @@ app.post('/api/revoke-device', (req, res) => {
  */
 app.get('/api/list-devices', (req, res) => {
     const adminKey = req.query.admin_key;
-    const ADMIN_KEY = 'sqm@2026'; // Change this!
+    const ADMIN_KEY = 'your-secret-admin-key-12345'; // Change this!
 
     if (adminKey !== ADMIN_KEY) {
         return res.status(401).json({ error: 'Unauthorized' });
