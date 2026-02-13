@@ -9,8 +9,8 @@ const APK_DOWNLOAD_URL = 'https://github.com/renaclean/renacleandialyzer-server/
 
 // ⚙️ AUTHORIZED DEVICES DATABASE
 const authorizedDevices = new Set([
-    '9d389cebf6a08dbd',
-    '0e49ad2b70a6d384',
+    '9d389cebf6a08dbd', //honor
+    '0f820508d85f3f2d', //oneplus(signed apk)
 ]);
 
 // Logging
@@ -144,4 +144,5 @@ app.listen(PORT, '0.0.0.0', () => {
     log(`Authorized devices: ${authorizedDevices.size}`);
     log('==============================================');
 });
+
 
